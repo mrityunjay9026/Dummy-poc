@@ -57,3 +57,30 @@ def search_apis(query: str, db: Session = Depends(get_db)):
     logger.info(f"Searching APIs with query={query}")
     apis = crud.get_api_collections_by_search(db, query=query)
     return apis
+
+
+@router.get("/personal", response_model=list[schemas.PersonalData])
+def list_personal_data(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    logger.info(f"Listing personal data with skip={skip}, limit={limit}")
+    data = crud.get_personal_data(db, skip=skip, limit=limit)
+    return data
+
+
+@router.get("/personal/{person_id}", response_model=schemas.PersonalData)
+def get_personal_data_by_id(person_id: int, db: Session = Depends(get_db)):
+    logger.info(f"Getting personal data by id={person_id}")
+    db_person = crud.get_personal_data_by_id(db, person_id=person_id)
+    if db_person is None:
+        logger.warning(f"Personal data with id={person_id} not found")
+        raise HTTPException(status_code=404, detail="Personal data not found")
+    return db_person
+
+
+@router.get("/personal/email/{email}", response_model=schemas.PersonalData)
+def get_personal_data_by_email(email: str, db: Session = Depends(get_db)):
+    logger.info(f"Getting personal data by email={email}")
+    db_person = crud.get_personal_data_by_email(db, email=email)
+    if db_person is None:
+        logger.warning(f"Personal data with email={email} not found")
+        raise HTTPException(status_code=404, detail="Personal data not found")
+    return db_person

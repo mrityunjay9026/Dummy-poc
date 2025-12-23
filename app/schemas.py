@@ -17,3 +17,23 @@ class APICollection(APICollectionBase):
 
     class Config:
         from_attributes = True
+
+
+class PersonalDataBase(BaseModel):
+    name: str
+    email: str
+    bio: str
+    age: int
+    occupation: str
+
+
+class PersonalDataCreate(PersonalDataBase):
+    pass
+
+
+class PersonalData(PersonalDataBase):
+    id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

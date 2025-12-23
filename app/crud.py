@@ -24,3 +24,23 @@ def create_api_collection(db: Session, api_collection: schemas.APICollectionCrea
     db.commit()
     db.refresh(db_item)
     return db_item
+
+
+def get_personal_data(db: Session, skip: int = 0, limit: int = 100):
+    return db.query(models.PersonalData).offset(skip).limit(limit).all()
+
+
+def get_personal_data_by_id(db: Session, person_id: int):
+    return db.query(models.PersonalData).filter(models.PersonalData.id == person_id).first()
+
+
+def get_personal_data_by_email(db: Session, email: str):
+    return db.query(models.PersonalData).filter(models.PersonalData.email == email).first()
+
+
+def create_personal_data(db: Session, personal_data: schemas.PersonalDataCreate):
+    db_item = models.PersonalData(**personal_data.model_dump())
+    db.add(db_item)
+    db.commit()
+    db.refresh(db_item)
+    return db_item

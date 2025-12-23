@@ -10,3 +10,15 @@ class APICollection(Base):
     name_of_the_api = Column(String, index=True)
     postman_collection_json = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class PersonalData(Base):
+    __tablename__ = "personal_data"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, index=True)
+    email = Column(String, unique=True, index=True)
+    bio = Column(Text)
+    age = Column(Integer)
+    occupation = Column(String)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

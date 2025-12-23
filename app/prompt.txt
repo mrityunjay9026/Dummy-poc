@@ -1,0 +1,202 @@
+You are GitHub Copilot. Generate a **brand-new FastAPI project** (no reuse of any existing code) that is fully runnable end-to-end in **one go**, using **Python 3.11**, **SQLite3**, and **SQLAlchemy** for persistence. The project must include initial data seeding, a few **GET** endpoints to fetch data, **Postman collections** saved both as a file and inside the database, comprehensive documentation, **pytest** tests, and **GitHub Actions** CI with quality and security gates. The output must be a single response that contains **all files with complete contents**, ready to copy into a new repository and run without rework.
+
+---
+
+## Objectives & Constraints
+
+- **Language & Runtime:** Python **3.11**.
+- **Frameworks/Libraries:** FastAPI, Uvicorn, SQLAlchemy (ORM), Pydantic v2.
+- **Database:** SQLite3 file-based DB (e.g., `data/app.db`).
+- **Data Model (Dataset):** Table holding:
+  - `id` (int, PK, autoincrement),
+  - `name_of_the_api` (string, unique, not null),
+  - `postman_collection_json` (JSON/text),
+  - `created_at` (datetime, default now).
+- **Endpoints (GET only, no auth for now):**
+  - `GET /health` → simple health check.
+  - `GET /apis` → list all API entries (paged with query params).
+  - `GET /apis/{id}` → fetch a single API entry by ID.
+  - `GET /apis/by-name/{name}` → fetch by `name_of_the_api`.
+  - `GET /apis/{id}/collection` → return Postman collection JSON for that API.
+  - `GET /apis/search?q=...` → search by substring in `name_of_the_api`.
+- **Initial Data:** On first run (or via `make seed`), insert at least **two** sample API entries with realistic Postman collections (stored both in DB and as a file under `postman/`).
+- **Quality Gates:** Ensure **zero** issues for:
+  - **PEP-8** (use `black`, `isort`, `flake8`),
+  - **pylint** (include a tuned `.pylintrc` and compliant code),
+  - **mypy** (strict enough types),
+  - **bandit** (security static analysis),
+  - **pip-audit** (no known vulnerable packages),
+  - **GitHub CodeQL** (Python code scanning),
+  - **Sonar** readiness (provide `sonar-project.properties` and code that avoids common SonarLint issues like missing docstrings, unused variables, prints, broad exceptions, etc.).
+- **Dependabot:** Provide `.github/dependabot.yml` to monitor `pip` and `github-actions`. **requirements.txt** must be pinned to safe, currently non-vulnerable versions compatible with Python 3.11 to avoid Dependabot alerts.
+- **Documentation:** A clear `README.md`, plus `docs/` with architecture overview, API reference, setup guide, runbook, and operations notes.
+- **Testing:** `pytest` unit tests covering DB init, seeding, and endpoints, with `pytest-cov` coverage ≥ **85%**.
+- **Security & Hardening:**
+  - No `print` statements; use structured `logging`.
+  - Validation via Pydantic models.
+  - Safe SQL via SQLAlchemy only (no raw string interpolation).
+  - CORS is restrictive by default (localhost development allowed).
+  - Use non-root user in Dockerfile, avoid secrets in repo, provide `.env.example`.
+- **Project Must Run Cleanly:** A single set of steps in the README must allow a user to create venv, install, seed, run the API, run tests and lint, and pass CI locally—**no manual fixes required**.
+- **Formatting & Style:** Full **PEP-8**, docstrings on modules/classes/functions, type hints everywhere, minimal cyclomatic complexity, clear separation of concerns.
+
+---
+
+## Required Project Structure (create exactly these folders/files)
+
+
+.
+├── app/
+│   ├── init.py
+│   ├── main.py
+│   ├── core/
+│   │   ├── config.py
+│   │   └── logging_config.py
+│   ├── db/
+│   │   ├── init.py
+│   │   ├── session.py
+│   │   ├── base.py
+│   │   └── seed.py
+│   ├── models/
+│   │   └── api_collection.py
+│   ├── schemas/
+│   │   └── api_collection.py
+│   ├── repositories/
+│   │   └── api_collection_repo.py
+│   ├── services/
+│   │   └── api_collection_service.py
+│   └── routers/
+│       ├── init.py
+│       ├── health.py
+│       └── api_collections.py
+├── postman/
+│   └── api-collections.postman_collection.json
+├── tests/
+│   ├── init.py
+│   ├── conftest.py
+│   ├── test_health.py
+│   ├── test_api_endpoints.py
+│   └── test_seed.py
+├── docs/
+│   ├── ARCHITECTURE.md
+│   ├── API_REFERENCE.md
+│   └── RUNBOOK.md
+├── .github/
+│   ├── workflows/
+│   │   ├── ci.yml
+│   │   └── codeql.yml
+│   └── dependabot.yml
+├── .env.example
+├── .editorconfig
+├── .gitignore
+├── .pylintrc
+├── .flake8
+├── mypy.ini
+├── pyproject.toml
+├── requirements.txt
+├── Makefile
+├── Dockerfile
+├── sonar-project.properties
+└── README.md
+
+---
+
+## Implementation Requirements (for each file’s content)
+
+**General Code Requirements**
+- Use **SQLAlchemy ORM** with a declarative base. SQLite DB file at `data/app.db` (create folder if missing).
+- Use **Pydantic v2** for request/response schemas. No deprecated v1 syntax.
+- FastAPI `main.py` must:
+  - create app with strict CORS (localhost only),
+  - include routers,
+  - init DB and optionally seed (controlled by env var `SEED_ON_STARTUP=true` default false),
+  - expose `/docs` and `/redoc` normally.
+- `seed.py` must insert two entries:
+  - `User Management API` with a realistic Postman collection (basic CRUD endpoints).
+  - `Inventory API` with a realistic Postman collection.
+  Both collections are also written to `postman/api-collections.postman_collection.json`.
+- Repositories layer provides CRUD read functions; Services layer adds simple business logic (e.g., search, validation).
+- Routers provide the GET endpoints listed, returning Pydantic models with consistent response structures (including pagination metadata for `/apis`).
+- Logging: Configure via `logging_config.py` using standard library `logging` with JSON-like formatter and app/module loggers.
+- Config: `config.py` reads env via `os.environ` (no third-party env packages), includes `DATABASE_URL`, `SEED_ON_STARTUP`, `CORS_ALLOWED_ORIGINS`, etc., with sane defaults.
+- Tests: Use `TestClient` from FastAPI, create a temporary SQLite DB for tests (e.g., `sqlite:///:memory:` or temp file), seed fixtures, assert endpoint behaviors, and coverage.
+- Documentation: Clear how to run, seed, test, lint, and CI; API docs with endpoint paths, query params, and sample responses.
+
+**Quality & Security Tooling**
+- `pyproject.toml`: Configure `black`, `isort`, `tool.pylint.messages_control`, and `coverage` options if needed.
+- `.pylintrc`: Tune rules minimally to pass with clean code (keep line length 100, enable docstring checks).
+- `.flake8`: Enforce PEP-8, max-line-length 100, ignore only safe rules (no blanket ignores).
+- `mypy.ini`: `strict = True` or close (disallow untyped defs, etc.).
+- `requirements.txt`: **Pin exact versions** known safe for Python 3.11 (FastAPI, Uvicorn, SQLAlchemy, Pydantic v2, pytest, pytest-cov, flake8, black, isort, mypy, pylint, bandit, pip-audit, requests). Ensure no known vulnerabilities (Copilot must choose versions that pass `pip-audit` at generation time).
+- `Makefile`: targets: `setup`, `lint`, `test`, `seed`, `run`, `audit`.
+- `Dockerfile`: Use `python:3.11-slim`, create non-root user, copy only necessary files, install via `--no-cache-dir`, set `UVICORN_WORKERS=2`, healthcheck curl `/health`.
+- `.github/workflows/ci.yml`: matrix on OS (ubuntu-latest) & Python 3.11 only; steps:
+  1. checkout
+  2. setup-python 3.11
+  3. restore pip cache
+  4. install dependencies
+  5. run linters: `black --check .`, `isort --check-only .`, `flake8`, `pylint app tests`
+  6. static typing: `mypy .`
+  7. security: `bandit -r app`, `pip-audit`
+  8. tests: `pytest --cov=app --cov-report=xml`
+  9. upload coverage artifact
+- `.github/workflows/codeql.yml`: standard Python CodeQL init, autobuild (no build needed), analyze.
+- `.github/dependabot.yml`: weekly schedule for `pip` and `github-actions` ecosystems.
+- `sonar-project.properties`: project key/name, source folder `app`, tests `tests`, coverage report `coverage.xml`. Note: users must set `SONAR_TOKEN` and `SONAR_HOST_URL` in repo secrets to run externally; code should be Sonar-clean.
+
+**Runbook & README**
+- Provide exact commands:
+  - `python -m venv .venv && source .venv/bin/activate`
+  - `pip install -r requirements.txt`
+  - `make seed` (or `python -m app.db.seed`)
+  - `uvicorn app.main:app --host 0.0.0.0 --port 8000`
+  - `make lint` / `make test` / `make audit`
+  - curl samples for each endpoint
+- Document environment variables (with defaults) and `.env.example`.
+- Provide Postman import instructions (using `postman/api-collections.postman_collection.json`).
+- CI badges (placeholder text ok, no external calls).
+
+---
+
+## Output Format (IMPORTANT)
+
+Produce a single response that includes **every file listed**, with **complete content** for each, in the following format:
+
+For each file, include a markdown heading with the file path, immediately followed by a fenced code block containing the full file contents. Example:
+
+
+path/to/file.ext
+Plain Text<language isn’t fully supported. Syntax highlighting is based on Plain Text.Show more lines
+
+- Use proper language fences for code (e.g., `python`, `yaml`, `json`, `text`, `dockerfile`).
+- Do **not** omit any file. No placeholders like “TODO”. Use production-ready code and configurations.
+- Ensure all configs and code are consistent (imports, names, paths).
+- The response must be self-contained and pass linting, typing, security, and tests.
+- The project must run locally with the README steps **without modification**.
+
+---
+
+## Acceptance Criteria (Copilot must satisfy all)
+
+1. **Project builds and runs**: `uvicorn app.main:app` launches; `/health` returns 200 OK.
+2. **DB created & seeded**: `data/app.db` exists after seed; two entries are present with valid Postman JSON.
+3. **Endpoints function**: `/apis`, `/apis/{id}`, `/apis/by-name/{name}`, `/apis/{id}/collection`, `/apis/search?q=` return correct data and HTTP statuses.
+4. **Quality gates pass locally**: `black --check`, `isort --check-only`, `flake8`, `pylint`, `mypy`, `bandit`, `pip-audit`, and `pytest --cov` all pass with zero errors; coverage ≥ 85%.
+5. **GitHub Actions CI**: Workflows compile and run successfully; CodeQL job completes; no code scanning alerts on a fresh repo; Dependabot config valid.
+6. **Docs complete**: `README.md`, `docs/*` are clear, accurate, and actionable; Postman file present and importable.
+7. **PEP-8 & typing**: Consistent docstrings and type hints; no prints; logging used.
+
+---
+
+## Notes to Copilot
+
+- Choose **safe, current versions** in `requirements.txt` that work with **Python 3.11** and pass `pip-audit` at generation time.
+- Use **Pydantic v2** syntax (e.g., `BaseModel` with `model_config`, `field` annotations as per v2).
+- Ensure SQLite JSON handling via `Text` column storing serialized JSON; validate via Pydantic (don’t rely on SQLite JSON1 extension).
+- Keep functions short and focused; avoid broad exception catches; add specific exceptions and proper HTTP error responses.
+- Include docstrings on modules, classes, and public functions to avoid Sonar/pylint complaints.
+- Use `from __future__ import annotations` where appropriate to help `mypy`.
+- Ensure pagination parameters on `/apis` (e.g., `limit`, `offset`) are validated and have sensible defaults.
+- Use dependency injection for DB sessions via FastAPI `Depends`.
+
+Now, generate **all files** with **complete content** as specified above, in the exact **Output Format** section, so the repository can be created and run immediately without any changes.
